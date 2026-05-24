@@ -1,0 +1,5 @@
+# Dépendances Node.js
+node_modules/
+
+# Configuration VS Code
+.vscode/

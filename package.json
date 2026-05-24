@@ -1,0 +1,9 @@
+{
+  "name": "uwudeck",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "canvas": "^3.2.3",
+    "loupedeck": "^7.0.3"
+  }
+}
