@@ -1,18 +1,25 @@
-import { discover } from 'loupedeck'
+import { discover } from 'loupedeck';
 import { logger } from '../utils/logger.js';
+
+let deviceInstance = null; // Stockage interne de l'instance
 
 export async function connectLoupedeck() {
     logger.info("Recherche du Loupedeck en cours...");
     
-    let device = null;
-    while (!device) {
+    while (!deviceInstance) {
         try {
-            device = await discover();
+            deviceInstance = await discover();
         } catch (e) {
-            // On attend 3 secondes avant de réessayer si non trouvé
             await new Promise(res => setTimeout(res, 3000));
         }
     }
     
-    return device;
+    return deviceInstance;
+}
+
+export function getLoupedeck() {
+    if (!deviceInstance) {
+        throw new Error("Le Loupedeck n'a pas encore été initialisé !");
+    }
+    return deviceInstance;
 }

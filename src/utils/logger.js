@@ -1,7 +1,13 @@
 import fs from 'fs';
 import path from 'path';
 
-const logFile = path.join(process.cwd(), 'loupedeck.log');
+// Crée le dossier de logs s'il n'existe pas
+const logsDir = path.join(process.cwd(), 'src', 'logs');
+if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+}
+
+const logFile = path.join(process.cwd(), 'src', 'logs', 'loupedeck.log');
 const isDebugMode = true;
 
 function writeLog(niveau, message) {
