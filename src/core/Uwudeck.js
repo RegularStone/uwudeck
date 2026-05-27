@@ -1,5 +1,5 @@
 // src/core/Uwudeck.js
-import { connectLoupedeck } from '../hardware/connectUSB.js';
+import { connectLoupedeck, resetLoupedeckConnection } from '../hardware/connectUSB.js';
 import { ScreenDrawer } from '../draw/ScreenDrawer.js';
 import { JsonProfile } from '../actions/JsonProfile.js';
 import { logger } from '../utils/logger.js';
@@ -15,12 +15,41 @@ export class Uwudeck {
 
     async start() {
         logger.info("Initialisation de l'application Uwudeck...");
-        
-        this.device = await connectLoupedeck();
-        logger.info("Loupedeck connecté avec succès ! 🎉");
+        const maxRetries = 5;
+        let attempt = 0;
+        let isConnected = false; // On ajoute un drapeau pour vérifier le succès
 
-        this.drawer = new ScreenDrawer(this.device);
-        await this.drawer.resetScreen();
+        // BOUCLE DE RÉSILIENCE : On essaie de se connecter ET de dessiner
+        while (attempt < maxRetries) {
+            this.device = await connectLoupedeck();
+            this.drawer = new ScreenDrawer(this.device);
+
+            try {
+                await Promise.race([
+                    this.drawer.resetScreen(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout lors du dessin (firmware bloqué)")), 1500))
+                ]);
+
+                logger.info("Loupedeck connecté et totalement opérationnel ! 🎉");
+                isConnected = true; 
+                break; 
+
+            } catch (error) {
+                attempt++;
+                logger.warn(`Détection d'un blocage matériel (${attempt}/${maxRetries}) : ${error.message}. Redémarrage forcé...`);
+
+                await resetLoupedeckConnection();
+                this.device = null;
+                
+                await new Promise(res => setTimeout(res, 1000));
+            }
+        }
+
+        // VÉRIFICATION APRÈS LA BOUCLE
+        if (!isConnected) {
+            logger.error("Échec critique : Impossible d'initialiser le Loupedeck après 5 tentatives.");
+            process.exit(1); // On coupe l'application avec un code d'erreur (1) pour éviter un crash plus loin
+        }
 
         this.currentProfile = new JsonProfile(this.device, profileData);
         logger.info(`Profil JSON chargé : ${profileData.profileName} (Page active: ${this.currentProfile.getCurrentPageName()})`);
@@ -43,7 +72,6 @@ export class Uwudeck {
         });
     }
 
-    // Gestionnaire d'interaction universel et ULTRA fluide
     async handleInteraction(sourceType, id, delta = null) {
         const action = this.currentProfile?.getAction(sourceType, id);
 

@@ -91,7 +91,7 @@ export class AudioActions {
             if (targetSession) {
                 targetSession.mute = !targetSession.mute;
                 logger.info(`Mute ${targetApp} : ${targetSession.mute ? "ON" : "OFF"}`);
-                return true; 
+                return false; // On retourne false pour éviter un feedback haptique sur les changements de mute d'application
             }
             return false;
         } catch (e) {
