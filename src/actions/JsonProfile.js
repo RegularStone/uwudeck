@@ -32,12 +32,35 @@ export class JsonProfile {
     getAction(sourceType, id) {
         const activePageKey = this.pageKeys[this.currentPageIndex];
 
-        const pageActionName = this.config.pages[activePageKey]?.[sourceType]?.[id];
-        if (pageActionName) return this.registry.get(pageActionName);
+        // 1. Extraction de la configuration brute depuis le JSON
+        let actionData = this.config.pages[activePageKey]?.[sourceType]?.[id] 
+                      || this.config.globalBindings?.[sourceType]?.[id];
 
-        const globalActionName = this.config.globalBindings?.[sourceType]?.[id];
-        if (globalActionName) return this.registry.get(globalActionName);
+        if (!actionData) return null;
 
-        return null;
+        // 2. Normalisation : qu'il s'agisse d'une string ou d'un objet, on crée un format unique
+        let actionName = "";
+        let jsonArgs = {};
+
+        if (typeof actionData === "string") {
+            actionName = actionData;
+        } else if (typeof actionData === "object" && actionData.action) {
+            actionName = actionData.action;
+            // On extrait toutes les clés du JSON sauf "action" (ex: target, state, color, etc.)
+            const { action, ...rest } = actionData;
+            jsonArgs = rest;
+        }
+
+        // 3. Récupération de la fonction dans le registre
+        const baseAction = this.registry.get(actionName);
+        if (!baseAction) return null;
+
+        // 4. L'enveloppe universelle : on passe un objet unique de contexte à l'action
+        return (hardwareDelta = null) => {
+            return baseAction({
+                delta: hardwareDelta, // Donnée issue du matériel (molette)
+                ...jsonArgs           // Toutes les données issues du JSON (target, etc.)
+            });
+        };
     }
 }

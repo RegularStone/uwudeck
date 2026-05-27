@@ -1,27 +1,23 @@
 // src/actions/ActionsRegistry.js
 import { GeneralActions } from './GeneralActions.js';
+import { AudioActions } from './AudioActions.js';
 
 export class ActionRegistry {
     // On reçoit l'instance du profil ici
     constructor(device, profile) {
         const general = new GeneralActions(device);
+        const audio = new AudioActions();
 
         this.actions = {
-            "VOLUME_SYSTEM_MUTE": () => general.fakeAction1(),
-            "VOLUME_SYSTEM_ROTATE": (delta) => general.changeSystemVolume(delta),
-            "SCROLL_ACTIVE_WINDOW": (delta) => general.fakeAction2(delta),
-            "LAUNCH_PROXMOX_CHECK": () => general.fakeAction1(),
-            
-            // NEXT_PAGE devient une vraie action standard !
-            "NEXT_PAGE": () => {
-                profile.nextPage();
-                return true; // Déclenchera la vibration haptique
-            },
+            // Actions audio (on propage juste l'objet de contexte)
+            "VOLUME_SYSTEM_ROTATE": (ctx) => audio.changeSystemVolume(ctx.delta),
+            "VOLUME_APP_ROTATE": (ctx) => audio.changeAppVolume(ctx.delta, ctx.target),
+            "MUTE_SYSTEM_TOGGLE": () => audio.toggleSystemMute(),
+            "MUTE_APP_TOGGLE": (ctx) => audio.toggleAppMute(ctx.target),
 
-            "PREVIOUS_PAGE": () => {
-                profile.previousPage();
-                return true; // Déclenchera la vibration haptique
-            }
+            // Navigation
+            "NEXT_PAGE": () => { profile.nextPage(); return true; },
+            "PREVIOUS_PAGE": () => { profile.previousPage(); return true; }
         };
     }
 

@@ -3,8 +3,11 @@
   
   "globalBindings": {
     "buttons": {
-      "knobTL": null,
-      "knobCL": null,
+      "knobTL": "MUTE_SYSTEM_TOGGLE",
+      "knobCL": {
+        "action": "MUTE_APP_TOGGLE", 
+        "target": "opera.exe"
+      },
 
       "0": null,
       "1": null,
@@ -13,30 +16,34 @@
     },
     "knobs": {
       "knobTL": "VOLUME_SYSTEM_ROTATE",
-      "knobCL": null
+      "knobCL": { 
+        "action": "VOLUME_APP_ROTATE", 
+        "target": "opera.exe" 
+      }
     },
     "touch": {
       "0": null, "1": null, "2": null, "3": null, "4": null,
       "5": null, "6": null, "7": null, "8": null, "9": null,
-      "10": null, "11": null, "12": null, "13": null, "14": null
+      "10": "PREVIOUS_PAGE", "11": null, "12": null, "13": null, "14": null
     }
   },
 
   "pages": {
     "page_web": {
       "pageName": "Navigation Web",
-      "knobs": {
-        "knobCL": "SCROLL_ACTIVE_WINDOW"
+      "knobs": {  
       },
       "touch": {
         "0": "LAUNCH_PROXMOX_CHECK",
+        "10": "PREVIOUS_PAGE",
         "14": "NEXT_PAGE"
       }
     },
     "page_audio": {
       "pageName": "Mode Audio",
       "touch": {
-        "10": "PREVIOUS_PAGE"
+        "10": "PREVIOUS_PAGE",
+        "14": "NEXT_PAGE"
       }
     }
   }

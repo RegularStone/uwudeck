@@ -4,6 +4,7 @@
   "type": "module",
   "dependencies": {
     "canvas": "^3.2.3",
-    "loupedeck": "^7.0.3"
+    "loupedeck": "^7.0.3",
+    "native-sound-mixer": "^3.4.6-win"
   }
 }

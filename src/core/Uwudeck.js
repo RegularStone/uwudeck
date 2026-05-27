@@ -53,7 +53,7 @@ export class Uwudeck {
 
             if (wantHaptic) {
                 try {
-                    await this.device.vibrate();
+                    await this.device.vibrate(0x32); // Vibration courte et douce
                 } catch (error) {
                     logger.error("Impossible de faire vibrer l'appareil", error);
                 }
@@ -62,9 +62,15 @@ export class Uwudeck {
     }
 
     async stop() {
-        if (this.device) {
-            logger.info("Déconnexion du Loupedeck...");
-            this.device.close();
+    if (this.device) {
+        logger.info("Déconnexion du Loupedeck...");
+        try {
+            await this.device.close(); 
+        } catch (error) {
+            logger.warn("Le port était déjà fermé ou indisponible lors de l'arrêt.");
+        } finally {
+            // Dans tous les cas, on nettoie notre variable
+            this.device = null;
         }
-    }
+    }}
 }
