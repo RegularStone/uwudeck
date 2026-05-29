@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>uwudeck</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+
+        <!-- HEADER -->
+        <header id="header">
+            <div class="header-left">
+                <span class="logo">UWUdeck</span>
+                <span class="profile-name" id="profile-name">—</span>
+            </div>
+            <div class="page-tabs" id="page-tabs">
+                <!-- injecté par JS -->
+            </div>
+            <div class="header-right" style="display:flex;align-items:center;gap:12px">
+                <button class="btn-settings" id="btn-open-profiles">⚙ Profils</button>
+                <div class="status-dot" id="status-dot" title="Connexion WebSocket"></div>
+            </div>
+        </header>
+
+        <!-- LAYOUT PRINCIPAL -->
+        <main id="main">
+
+            <!-- BANDEAU OPTIONS (gauche) -->
+            <aside id="options-panel" class="collapsed">
+                <button id="options-toggle" title="Options">
+                    <span class="options-toggle-icon">&#8250;</span>
+                </button>
+                <div id="options-content">
+                    <!-- injecté par OptionsPanel.js -->
+                </div>
+            </aside>
+
+            <!-- PANNEAU DEVICE : représentation du device -->
+            <section id="device-panel">
+                <div class="device-frame">
+
+                    <!-- Gauche : 2 molettes cliquables + 1 bouton physique standalone -->
+                    <div class="side-controls left-controls">
+                        <div class="knob-group">
+                            <div class="knob" data-source="knobs" data-id="knobTL" title="Rotation TL">
+                                <div class="knob-ring"></div>
+                                <span class="knob-id">TL</span>
+                                <span class="knob-label">rotate</span>
+                            </div>
+                            <div class="btn-physical btn-under-knob" data-source="buttons" data-id="knobTL" title="Clic TL">
+                                <span class="knob-btn-label">click</span>
+                            </div>
+                        </div>
+                        <div class="knob-group">
+                            <div class="knob" data-source="knobs" data-id="knobCL" title="Rotation CL">
+                                <div class="knob-ring"></div>
+                                <span class="knob-id">CL</span>
+                                <span class="knob-label">rotate</span>
+                            </div>
+                            <div class="btn-physical btn-under-knob" data-source="buttons" data-id="knobCL" title="Clic CL">
+                                <span class="knob-btn-label">click</span>
+                            </div>
+                        </div>
+                        <!-- Bouton physique standalone sous les molettes -->
+                        <div class="btn-physical btn-left-standalone" data-source="buttons" data-id="0" title="Bouton 0"></div>
+                    </div>
+
+                    <!-- Grille tactile centrale 5×3 -->
+                    <div class="touch-grid" id="touch-grid">
+                        <!-- 15 cases injectées par JS -->
+                    </div>
+
+                    <!-- Droite : 3 boutons physiques empilés verticalement -->
+                    <div class="side-controls right-controls">
+                        <div class="btn-physical" data-source="buttons" data-id="1" title="Bouton 1"></div>
+                        <div class="btn-physical" data-source="buttons" data-id="2" title="Bouton 2"></div>
+                        <div class="btn-physical" data-source="buttons" data-id="3" title="Bouton 3"></div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- PANNEAU DROIT : éditeur de clé -->
+            <aside id="editor-panel">
+                <div id="editor-empty">
+                    <p>Sélectionne une touche<br>pour l'éditer</p>
+                </div>
+                <div id="editor-content" class="hidden">
+                    <!-- injecté par KeyEditor.js -->
+                </div>
+            </aside>
+
+        </main>
+
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>

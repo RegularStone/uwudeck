@@ -1,0 +1,1295 @@
+/* ============================================================
+   uwudeck — UI
+   Thème : dark industrial, typographie Syne + DM Mono
+   ============================================================ */
+
+:root {
+    --bg:           #0d0d0f;
+    --surface:      #141417;
+    --surface-2:    #1c1c21;
+    --surface-3:    #242429;
+    --border:       #2a2a32;
+    --border-light: #3a3a45;
+
+    --accent:       #7b61ff;
+    --accent-glow:  rgba(123, 97, 255, 0.25);
+    --accent-2:     #ff6161;
+    --green:        #2ecc71;
+    --amber:        #f39c12;
+
+    --text:         #e8e8f0;
+    --text-muted:   #6b6b80;
+    --text-dim:     #3d3d4d;
+
+    --knob-size:    52px;
+    --btn-size:     32px;
+    --touch-size:   72px;
+    --radius:       6px;
+    --radius-lg:    12px;
+
+    --font-ui:      'Syne', sans-serif;
+    --font-mono:    'DM Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+
+#header {
+    height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.header-left {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.logo {
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--accent);
+}
+
+.profile-name {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.page-tabs {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+}
+
+.page-tab {
+    padding: 5px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.page-tab:hover { border-color: var(--border-light); color: var(--text); }
+
+.page-tab.active {
+    background: var(--accent-glow);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.tab-global {
+    margin-left: 12px;
+    border-style: dashed;
+    font-size: 11px;
+    color: var(--text-dim);
+}
+.tab-global.active { color: var(--accent); }
+
+.header-right { margin-left: auto; }
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: background 0.3s;
+}
+.status-dot.connected    { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.status-dot.disconnected { background: var(--accent-2); }
+
+/* ============================================================
+   LAYOUT PRINCIPAL
+   ============================================================ */
+
+#main {
+    display: grid;
+    grid-template-columns: auto 1fr 340px;
+    height: calc(100vh - 52px);
+    overflow: hidden;
+}
+
+/* ============================================================
+   OPTIONS PANEL (bandeau vertical gauche)
+   ============================================================ */
+
+#options-panel {
+    width: 240px;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    transition: width 0.2s ease;
+    position: relative;
+}
+
+#options-panel.collapsed {
+    width: 32px;
+}
+
+#options-toggle {
+    width: 32px;
+    min-width: 32px;
+    height: 100%;
+    background: none;
+    border: none;
+    border-right: 1px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, background 0.15s;
+    flex-shrink: 0;
+}
+
+#options-toggle:hover {
+    color: var(--text);
+    background: var(--surface-2);
+}
+
+.options-toggle-icon {
+    font-size: 16px;
+    display: inline-block;
+    transition: transform 0.2s ease;
+    line-height: 1;
+}
+
+#options-panel:not(.collapsed) .options-toggle-icon {
+    transform: rotate(180deg);
+}
+
+#options-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    opacity: 1;
+    transition: opacity 0.15s;
+}
+
+#options-panel.collapsed #options-content {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ---- Section générique dans le panneau options ---- */
+
+.options-section-title {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+/* ---- Liste de variables ---- */
+
+.var-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.var-item {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    cursor: default;
+    transition: border-color 0.15s;
+}
+
+.var-item:hover { border-color: var(--border-light); }
+
+.var-item-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.var-name {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.var-type-badge {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.var-value-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.var-value {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.var-value.is-null { color: var(--text-dim); font-style: italic; }
+
+.var-set-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 10px;
+    padding: 1px 6px;
+    font-family: var(--font-mono);
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.var-set-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.var-desc {
+    font-size: 10px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.var-actions {
+    display: flex;
+    gap: 4px;
+    justify-content: flex-end;
+    margin-top: 2px;
+}
+
+.var-edit-btn, .var-delete-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1;
+    padding: 0 2px;
+    transition: color 0.15s;
+}
+
+.var-edit-btn   { color: var(--text-dim); }
+.var-edit-btn:hover { color: var(--text); }
+.var-delete-btn { color: var(--text-dim); }
+.var-delete-btn:hover { color: var(--accent-2); }
+
+/* ---- Formulaire ajout/édition variable ---- */
+
+.var-form {
+    background: var(--surface-2);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.var-form .field label { font-size: 10px; }
+
+.var-form .field input,
+.var-form .field select {
+    padding: 5px 8px;
+    font-size: 11px;
+}
+
+.var-form-row {
+    display: flex;
+    gap: 6px;
+}
+
+.var-form-row .btn { flex: 1; font-size: 11px; padding: 5px 8px; }
+
+.var-persist-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.var-persist-row input[type="checkbox"] {
+    width: 13px;
+    height: 13px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+/* ============================================================
+   DEVICE PANEL
+   ============================================================ */
+
+#device-panel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    overflow: auto;
+}
+
+.device-frame {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px 20px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+}
+
+/* ---- Contrôles latéraux ---- */
+
+.side-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+}
+
+.knob-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Bouton click directement sous une molette */
+.btn-under-knob {
+    width: var(--knob-size) !important;
+    height: 18px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Bouton physique standalone (gauche, sous les deux molettes) */
+.btn-left-standalone {
+    margin-top: 4px;
+    height: 14px !important;
+    width: 28px !important;
+}
+
+.knob-btn-label {
+    font-family: var(--font-mono);
+    font-size: 8px;
+    color: var(--text-dim);
+    pointer-events: none;
+    letter-spacing: 0.5px;
+}
+
+.btn-under-knob:hover .knob-btn-label,
+.btn-under-knob.selected .knob-btn-label { color: var(--accent); }
+.btn-under-knob.has-binding .knob-btn-label { color: var(--text-muted); }
+
+/* Droite : 3 boutons empilés */
+.right-controls .btn-physical {
+    width: 28px;
+    height: 14px;
+}
+
+.knob {
+    width: var(--knob-size);
+    height: var(--knob-size);
+    border-radius: 50%;
+    background: var(--surface-2);
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    transition: border-color 0.15s, transform 0.1s;
+}
+
+.knob:hover { border-color: var(--accent); transform: scale(1.05); }
+.knob.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.knob.has-binding { border-color: var(--border-light); }
+
+.knob-ring {
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    border: 1px solid var(--border-light);
+}
+
+.knob-id {
+    font-family: var(--font-mono);
+    font-size: 8px;
+    color: var(--text-dim);
+    position: absolute;
+    top: 7px;
+    z-index: 1;
+    letter-spacing: 0.5px;
+}
+
+.knob-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-muted);
+    z-index: 1;
+    margin-top: 8px;
+}
+
+.btn-physical {
+    width: var(--btn-size);
+    height: 12px;
+    border-radius: 3px;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.btn-physical:hover { border-color: var(--accent); }
+.btn-physical.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+.btn-physical.has-binding { border-color: var(--border-light); background: var(--surface-2); }
+
+.physical-buttons-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* ---- Grille tactile 5×3 ---- */
+
+.touch-grid {
+    display: grid;
+    grid-template-columns: repeat(5, var(--touch-size));
+    grid-template-rows: repeat(3, var(--touch-size));
+    gap: 4px;
+}
+
+.touch-key {
+    width: var(--touch-size);
+    height: var(--touch-size);
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.15s, transform 0.1s;
+}
+
+.touch-key:hover { border-color: var(--accent); transform: scale(1.03); }
+
+.touch-key.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.touch-key.has-binding {
+    border-color: var(--border-light);
+}
+
+.touch-key .key-index {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    position: absolute;
+    top: 4px;
+    left: 5px;
+}
+
+.touch-key .key-action {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 0 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.touch-key.has-binding .key-action { color: var(--text); }
+
+.touch-key .key-feedback-dots {
+    display: flex;
+    gap: 3px;
+    position: absolute;
+    bottom: 4px;
+}
+
+.feedback-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+}
+
+.feedback-dot.haptic { background: var(--accent); }
+.feedback-dot.led    { background: var(--amber); }
+.feedback-dot.draw   { background: var(--green); }
+.feedback-dot.screen { background: var(--accent-2); }
+
+/* ============================================================
+   EDITOR PANEL
+   ============================================================ */
+
+#editor-panel {
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+#editor-empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    text-align: center;
+    line-height: 1.8;
+    font-size: 13px;
+}
+
+#editor-content {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+#editor-content.hidden { display: none; }
+
+/* ---- Sections de l'éditeur ---- */
+
+.editor-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.editor-section-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.editor-key-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.key-type-badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+}
+
+.key-id-label {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+}
+
+/* ---- Formulaire ---- */
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.field label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+}
+
+.field select,
+.field input[type="text"],
+.field input[type="color"] {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 7px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+}
+
+.field select:focus,
+.field input[type="text"]:focus { border-color: var(--accent); }
+
+.field input[type="color"] {
+    height: 36px;
+    padding: 3px 6px;
+    cursor: pointer;
+}
+
+/* ---- Feedbacks list ---- */
+
+.feedback-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.feedback-item {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+}
+
+.feedback-item-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.feedback-type-badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+.feedback-type-badge.haptic { background: rgba(123,97,255,0.15); color: var(--accent); border: 1px solid rgba(123,97,255,0.3); }
+.feedback-type-badge.led    { background: rgba(243,156,18,0.15);  color: var(--amber);  border: 1px solid rgba(243,156,18,0.3); }
+.feedback-type-badge.draw   { background: rgba(46,204,113,0.15);  color: var(--green);  border: 1px solid rgba(46,204,113,0.3); }
+.feedback-type-badge.screen { background: rgba(255,97,97,0.15);   color: var(--accent-2); border: 1px solid rgba(255,97,97,0.3); }
+
+.feedback-delete-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+    transition: color 0.15s;
+}
+.feedback-delete-btn:hover { color: var(--accent-2); }
+
+.feedback-params {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* ---- Boutons ---- */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btn:hover { border-color: var(--border-light); background: var(--surface-3); }
+
+.btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+.btn-primary:hover { background: #6a50ee; border-color: #6a50ee; }
+
+.btn-danger { color: var(--accent-2); }
+.btn-danger:hover { border-color: var(--accent-2); background: rgba(255,97,97,0.1); }
+
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+
+.btn-group {
+    display: flex;
+    gap: 8px;
+}
+
+/* ---- Add feedback ---- */
+
+.add-feedback-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.add-feedback-row select {
+    flex: 1;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 7px 10px;
+    outline: none;
+}
+
+/* ---- Divider ---- */
+.divider {
+    height: 1px;
+    background: var(--border);
+}
+
+/* ---- Target selector (feedback cross-key) ---- */
+.target-selector {
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.target-selector-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.target-selector-row {
+    display: flex;
+    gap: 6px;
+}
+
+.target-selector-row select {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 5px 8px;
+    outline: none;
+    transition: border-color 0.15s;
+    flex: 1;
+}
+
+.target-selector-row select:focus { border-color: var(--accent); }
+.target-source-select { flex: 0 0 auto; min-width: 80px; }
+.target-key-select    { flex: 1; }
+
+/* ---- Bouton conditionnel (header feedback) ---- */
+
+.feedback-cond-btn {
+    margin-left: 4px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    padding: 1px 5px;
+    transition: all 0.15s;
+}
+
+.feedback-cond-btn:hover { border-color: var(--accent); color: var(--accent); }
+.feedback-cond-btn.active {
+    background: var(--accent-glow);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* ---- Cases editor (mode conditionnel feedback) ---- */
+
+.cases-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.vars-hint {
+    font-size: 10px;
+    color: var(--text-dim);
+    padding: 4px 6px;
+    background: var(--surface-3);
+    border-radius: 3px;
+    line-height: 1.6;
+}
+
+.vars-hint code {
+    font-family: var(--font-mono);
+    color: var(--accent);
+    background: rgba(123,97,255,0.1);
+    padding: 0 3px;
+    border-radius: 2px;
+}
+
+.case-block {
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.case-block.case-else {
+    border-style: dashed;
+    border-color: var(--border-light);
+}
+
+.case-block-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.case-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    flex: 1;
+}
+
+.case-remove-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+    transition: color 0.15s;
+}
+.case-remove-btn:hover { color: var(--accent-2); }
+
+.case-condition-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.case-if-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.case-when {
+    flex: 1;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 5px 8px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.case-when:focus { border-color: var(--accent); }
+.case-when::placeholder { color: var(--text-dim); }
+
+.case-params-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 2px;
+}
+
+/* ---- Effets variables (KeyEditor) ---- */
+
+#effects-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.effects-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.effects-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.effect-row {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.effect-row select,
+.effect-row input[type="text"] {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 4px 7px;
+    outline: none;
+    transition: border-color 0.15s;
+    min-width: 0;
+}
+
+.effect-row select:focus,
+.effect-row input[type="text"]:focus { border-color: var(--accent); }
+
+.effect-var  { flex: 2; }
+.effect-op   { flex: 1; }
+.effect-value { flex: 1; }
+
+.btn-effect-remove {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+    transition: color 0.15s;
+    flex-shrink: 0;
+}
+.btn-effect-remove:hover { color: var(--accent-2); }
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+/* ---- Utilitaires ---- */
+.hidden { display: none !important; }
+.text-muted { color: var(--text-muted); }
+.text-mono { font-family: var(--font-mono); }
+
+/* ============================================================
+   HEADER — bouton profils
+   ============================================================ */
+
+.btn-settings {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+.btn-settings:hover { border-color: var(--border-light); color: var(--text); }
+
+/* ============================================================
+   MODAL GESTION DES PROFILS
+   ============================================================ */
+
+.profile-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.profile-modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    width: 540px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+}
+
+.profile-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.profile-modal-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.15s;
+}
+.profile-modal-close:hover { color: var(--text); }
+
+.profile-modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* ---- Liste de profils ---- */
+
+.profile-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.profile-item {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.profile-item.is-active {
+    border-color: var(--accent);
+}
+
+.profile-item-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--surface-2);
+}
+
+.profile-item-name {
+    flex: 1;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: text;
+}
+
+.profile-active-badge {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    padding: 2px 7px;
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+}
+
+.profile-pages-section {
+    padding: 10px 14px;
+    background: var(--surface-3);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.page-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+}
+
+.page-item-name {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: text;
+}
+
+.page-delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 3px;
+    transition: color 0.15s;
+}
+.page-delete-btn:hover { color: var(--accent-2); }
+
+.page-add-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.page-add-row input {
+    flex: 1;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 5px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.page-add-row input:focus { border-color: var(--accent); }
+
+/* ---- Créer un profil ---- */
+
+.profile-create-row {
+    display: flex;
+    gap: 8px;
+    padding-top: 4px;
+    border-top: 1px solid var(--border);
+}
+
+.profile-create-row input {
+    flex: 1;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 7px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.profile-create-row input:focus { border-color: var(--accent); }
+
+/* ---- Inline edit ---- */
+
+.inline-edit-input {
+    flex: 1;
+    background: var(--surface-3);
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    padding: 2px 6px;
+    outline: none;
+}
+
+/* ---- Restart notice ---- */
+
+.restart-notice {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--amber);
+    padding: 6px 10px;
+    background: rgba(243,156,18,0.08);
+    border: 1px solid rgba(243,156,18,0.2);
+    border-radius: var(--radius);
+    margin-top: 2px;
+}

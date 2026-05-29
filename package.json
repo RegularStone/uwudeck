@@ -3,8 +3,11 @@
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
+    "better-sqlite3": "^12.10.0",
     "canvas": "^3.2.3",
+    "express": "^5.2.1",
     "loupedeck": "^7.0.3",
-    "native-sound-mixer": "^3.4.6-win"
+    "native-sound-mixer": "^3.4.6-win",
+    "ws": "^8.21.0"
   }
 }
