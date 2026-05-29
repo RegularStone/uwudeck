@@ -64,6 +64,9 @@ export class Uwudeck {
 
         logger.info(`Profil chargé : "${this.currentProfile.profile.name}" (Page : "${this.currentProfile.getCurrentPageName()}")`);
 
+        // ---- Resolvers statebar ------------------------------------ //
+        this._registerStateBarResolvers();
+
         // ---- Serveur web ------------------------------------------- //
         this.webServer = new WebServer(this);
         this.webServer.start();
@@ -91,6 +94,9 @@ export class Uwudeck {
         this.device.on('rotate', async ({ id, delta }) => {
             await this.handleInteraction('knobs', id, delta);
         });
+
+        // ---- Rendu initial des feedbacks visuels -------------------- //
+        this._refreshVisibleFeedbacks();
     }
 
     // ---------------------------------------------------------------- //
@@ -135,6 +141,24 @@ export class Uwudeck {
                 logger.warn(`Refresh feedback binding ${bindingId} : ${err.message}`);
             });
         }
+    }
+
+    _registerStateBarResolvers() {
+        const audio    = this.currentProfile.registry.audio;
+        const statebar = this.feedbackManager.renderers.statebar;
+
+        statebar.registerResolver('GET_VOLUME_SYSTEM', () => audio.getSystemVolume());
+
+        // Resolvers par app : GET_VOLUME_APP:<nomapp.exe>
+        // ex: value_action: "GET_VOLUME_APP:chrome.exe"
+        const originalGet = statebar._resolvers.get.bind(statebar._resolvers);
+        statebar._resolvers.get = (key) => {
+            const existing = originalGet(key);
+            if (existing) return existing;
+            const match = key?.match(/^GET_VOLUME_APP:(.+)$/);
+            if (match) return () => audio.getAppVolume(match[1]);
+            return undefined;
+        };
     }
 
     _applyVariableEffect({ name, op, value }) {

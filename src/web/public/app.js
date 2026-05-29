@@ -42,8 +42,51 @@ async function init() {
     await optionsPanel.refresh();
     connectWebSocket();
     setupDeviceControls();
+    setupEditorResize();
     document.getElementById('btn-open-profiles')
         .addEventListener('click', () => profileManager.open());
+}
+
+function setupEditorResize() {
+    const handle = document.getElementById('editor-resize-handle');
+    const main   = document.getElementById('main');
+    const MIN_W  = 260;
+    const MAX_W  = 700;
+    const STORE_KEY = 'uwudeck_editor_width';
+
+    const saved = parseInt(localStorage.getItem(STORE_KEY));
+    if (saved && saved >= MIN_W && saved <= MAX_W) {
+        main.style.setProperty('--editor-width', `${saved}px`);
+    }
+
+    let startX, startW;
+
+    handle.addEventListener('mousedown', e => {
+        startX = e.clientX;
+        startW = document.getElementById('editor-panel').getBoundingClientRect().width;
+        handle.classList.add('dragging');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+
+        const onMove = e => {
+            const delta = startX - e.clientX;
+            const newW  = Math.min(MAX_W, Math.max(MIN_W, startW + delta));
+            main.style.setProperty('--editor-width', `${newW}px`);
+        };
+
+        const onUp = () => {
+            handle.classList.remove('dragging');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            const w = parseInt(getComputedStyle(main).getPropertyValue('--editor-width'));
+            if (w) localStorage.setItem(STORE_KEY, w);
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        };
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
 }
 
 // ------------------------------------------------------------------ //

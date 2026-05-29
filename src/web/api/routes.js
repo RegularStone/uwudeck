@@ -301,12 +301,32 @@ export function createRoutes(uwudeck, broadcast) {
     // GET /api/actions
     router.get('/actions', (_req, res) => {
         res.json([
-            { name: 'VOLUME_SYSTEM_ROTATE', args: [],               sourceTypes: ['knobs'] },
-            { name: 'VOLUME_APP_ROTATE',    args: ['target'],       sourceTypes: ['knobs'] },
-            { name: 'MUTE_SYSTEM_TOGGLE',   args: [],               sourceTypes: ['buttons', 'touch'] },
-            { name: 'MUTE_APP_TOGGLE',      args: ['target'],       sourceTypes: ['buttons', 'touch'] },
-            { name: 'NEXT_PAGE',            args: [],               sourceTypes: ['buttons', 'touch'] },
-            { name: 'PREVIOUS_PAGE',        args: [],               sourceTypes: ['buttons', 'touch'] },
+            { name: 'VOLUME_SYSTEM_ROTATE', args: [],         argTypes: {},                              sourceTypes: ['knobs'] },
+            { name: 'VOLUME_APP_ROTATE',    args: ['target'], argTypes: {},                              sourceTypes: ['knobs'] },
+            { name: 'MUTE_SYSTEM_TOGGLE',   args: [],         argTypes: {},                              sourceTypes: ['buttons', 'touch'] },
+            { name: 'MUTE_APP_TOGGLE',      args: ['target'], argTypes: {},                              sourceTypes: ['buttons', 'touch'] },
+            { name: 'SWITCH_AUDIO_OUTPUT',  args: ['device'], argTypes: { device: 'audio-device-output' }, sourceTypes: ['buttons', 'touch'] },
+            { name: 'SWITCH_AUDIO_INPUT',   args: ['device'], argTypes: { device: 'audio-device-input'  }, sourceTypes: ['buttons', 'touch'] },
+            { name: 'NEXT_PAGE',            args: [],         argTypes: {},                              sourceTypes: ['buttons', 'touch'] },
+            { name: 'PREVIOUS_PAGE',        args: [],         argTypes: {},                              sourceTypes: ['buttons', 'touch'] },
+            { name: 'OPEN_PATH',            args: ['path'],   argTypes: {},                              sourceTypes: ['buttons', 'touch'] },
+        ]);
+    });
+
+    // GET /api/audio-devices — liste les périphériques audio actifs
+    router.get('/audio-devices', async (_req, res) => {
+        try {
+            const audio = uwudeck?.currentProfile?.registry?.audio;
+            if (!audio) return res.status(503).json({ error: 'AudioActions non disponible' });
+            res.json(await audio.getAudioDevices());
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+
+    // GET /api/statebar-resolvers — value_action disponibles pour le renderer statebar
+    router.get('/statebar-resolvers', (_req, res) => {
+        res.json([
+            { value_action: 'GET_VOLUME_SYSTEM',      description: 'Volume du périphérique audio par défaut (0–100%)' },
+            { value_action: 'GET_VOLUME_APP:<app>',   description: 'Volume d\'une application — remplace <app> par le nom du .exe, ex: GET_VOLUME_APP:chrome.exe' },
         ]);
     });
 
@@ -329,9 +349,9 @@ export function createRoutes(uwudeck, broadcast) {
     // POST /api/variables — créer une variable
     router.post('/variables', (req, res) => {
         try {
-            const { name, type = 'boolean', defaultValue = null, persistValue = false, description = '' } = req.body;
+            const { name, type = 'boolean', defaultValue = null, persistValue = false, description = '', group = null } = req.body;
             if (!name?.trim()) return res.status(400).json({ error: 'name requis' });
-            const variable = repo.createVariable({ name: name.trim(), type, defaultValue, persistValue, description });
+            const variable = repo.createVariable({ name: name.trim(), type, defaultValue, persistValue, description, group: group?.trim() || null });
             uwudeck.stateStore?.reload();
             broadcast({ type: 'variables:changed' });
             res.json(variable);

@@ -12,8 +12,12 @@ import { logger } from '../../utils/logger.js';
  *   label         : 'VOL',                // texte affiché au-dessus de la barre
  *   color         : '#00FF00',            // couleur de la barre remplie
  *   color_low     : '#FF4444',            // couleur quand valeur < 20% (optionnel)
- *   bg            : '#111111',            // fond de la barre
- *   bg_key        : '#000000',            // fond de la touche
+ *   bg            : '#111111',            // fond de la touche ET de la barre vide
+ *   font_size     : 12,                   // taille police (optionnel, auto-fit par défaut)
+ *   padTop        : 0,                    // padding en px
+ *   padRight      : 0,
+ *   padBottom     : 0,
+ *   padLeft       : 0,
  * }
  *
  * Enregistrement d'un resolver :
@@ -42,8 +46,9 @@ export class StateBarRenderer {
             color        = '#00C8FF',
             color_low    = null,
             bg           = '#1A1A1A',
-            bg_key       = '#000000',
+            font_size    = null,
         } = params;
+        const pad = _parsePadding(params);
 
         // Récupération de la valeur (0–1)
         let value = 0;
@@ -61,20 +66,20 @@ export class StateBarRenderer {
         }
 
         await this.device.drawKey(keyIndex, (ctx, width, height) => {
-            // Fond de la touche
-            ctx.fillStyle = bg_key;
+            // Fond de la touche (même couleur que fond de barre)
+            ctx.fillStyle = bg;
             ctx.fillRect(0, 0, width, height);
 
-            // Zone de la barre (centrée, marges de 4px)
+            // Zone de la barre (padding utilisateur + marge interne minimale)
             const margin  = 4;
-            const barX    = margin;
-            const barW    = width - margin * 2;
-            const labelH  = label ? 18 : 0;
-            const barY    = margin + labelH;
-            const barH    = height - margin * 2 - labelH;
+            const barX    = pad.left   + margin;
+            const barW    = width  - pad.left - pad.right  - margin * 2;
+            const labelH  = label ? 16 : 0;
+            const barY    = pad.top    + margin + labelH;
+            const barH    = height - pad.top - pad.bottom - margin * 2 - labelH;
 
-            // Fond de la barre
-            ctx.fillStyle   = bg;
+            // Fond de la barre (légèrement plus sombre pour la distinguer du fond)
+            ctx.fillStyle = _darken(bg, 0.6);
             ctx.beginPath();
             ctx.roundRect(barX, barY, barW, barH, 3);
             ctx.fill();
@@ -91,24 +96,55 @@ export class StateBarRenderer {
                 ctx.fill();
             }
 
-            // Pourcentage
-            const pct = Math.round(value * 100);
+            // Pourcentage — taille auto-fit ou imposée
+            const pct      = Math.round(value * 100);
+            const pctText  = `${pct}%`;
+            const pctSize  = font_size ? parseInt(font_size) : _fitFontSize(ctx, pctText, barW - 4, 14, 7, 'bold');
             ctx.fillStyle    = '#FFFFFF';
-            ctx.font         = `bold 10px sans-serif`;
+            ctx.font         = `bold ${pctSize}px sans-serif`;
             ctx.textAlign    = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(`${pct}%`, width / 2, fillY > barY + 8 ? fillY - 7 : barY + barH / 2);
+            const pctY = barY + barH / 2;
+            ctx.fillText(pctText, width / 2, pctY);
 
             // Label en haut
             if (label) {
+                const lblSize = font_size ? Math.max(7, parseInt(font_size) - 2) : _fitFontSize(ctx, label, barW - 2, 11, 7, '');
                 ctx.fillStyle    = '#AAAAAA';
-                ctx.font         = `10px sans-serif`;
+                ctx.font         = `${lblSize}px sans-serif`;
                 ctx.textAlign    = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(label, width / 2, margin + labelH / 2);
+                ctx.fillText(label, pad.left + margin + barW / 2, pad.top + margin + labelH / 2);
             }
         });
 
         logger.debug(`StateBarRenderer : touch ${keyIndex} → ${Math.round(value * 100)}% (${value_action})`);
     }
+}
+
+function _parsePadding({ padTop = 0, padRight = 0, padBottom = 0, padLeft = 0 }) {
+    return {
+        top:    Number(padTop)    || 0,
+        right:  Number(padRight)  || 0,
+        bottom: Number(padBottom) || 0,
+        left:   Number(padLeft)   || 0,
+    };
+}
+
+function _darken(hex, factor) {
+    const n = parseInt(hex.replace('#', ''), 16);
+    const r = Math.round(((n >> 16) & 0xff) * factor);
+    const g = Math.round(((n >> 8)  & 0xff) * factor);
+    const b = Math.round(( n        & 0xff) * factor);
+    return `#${[r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')}`;
+}
+
+function _fitFontSize(ctx, text, maxWidth, preferred, min, weight) {
+    let size = preferred;
+    ctx.font = `${weight ? weight + ' ' : ''}${size}px sans-serif`;
+    while (size > min && ctx.measureText(text).width > maxWidth) {
+        size--;
+        ctx.font = `${weight ? weight + ' ' : ''}${size}px sans-serif`;
+    }
+    return size;
 }

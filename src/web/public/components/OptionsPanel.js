@@ -8,10 +8,13 @@ export class OptionsPanel {
         this.content   = content;
         this.toggleBtn = toggleBtn;
 
-        this._variables = [];   // définitions BDD
-        this._state     = {};   // valeurs runtime
-        this._editingId = null; // id de la variable en cours d'édition (null = création)
-        this._showForm  = false;
+        this._variables   = [];   // définitions BDD
+        this._state       = {};   // valeurs runtime
+        this._resolvers   = [];   // resolvers statebar
+        this._editingId   = null; // id de la variable en cours d'édition (null = création)
+        this._showForm    = false;
+        this._collapsed   = new Set(); // groupes repliés
+        this._activeTab   = 'variables';
 
         toggleBtn.addEventListener('click', () => this._toggleCollapse());
     }
@@ -21,19 +24,20 @@ export class OptionsPanel {
     // ---------------------------------------------------------------- //
 
     async refresh() {
-        const [defs, state] = await Promise.all([
+        const [defs, state, resolvers] = await Promise.all([
             api('/variables'),
             api('/variables/state'),
+            api('/statebar-resolvers'),
         ]);
         this._variables = defs;
         this._state     = state;
+        this._resolvers = resolvers;
         this._render();
     }
 
     /** Met à jour une valeur runtime sans re-fetcher */
     updateState(name, value) {
         this._state[name] = value;
-        // Met à jour uniquement la valeur affichée pour cette variable
         const el = this.content.querySelector(`[data-var-name="${CSS.escape(name)}"] .var-value`);
         if (el) {
             el.textContent = _formatValue(value);
@@ -42,7 +46,7 @@ export class OptionsPanel {
     }
 
     // ---------------------------------------------------------------- //
-    //  Collapse/expand
+    //  Collapse/expand du panneau entier
     // ---------------------------------------------------------------- //
 
     _toggleCollapse() {
@@ -55,7 +59,74 @@ export class OptionsPanel {
 
     _render() {
         this.content.innerHTML = '';
-        this.content.appendChild(this._buildVariablesSection());
+        this.content.appendChild(this._buildTabs());
+        if (this._activeTab === 'variables') {
+            this.content.appendChild(this._buildVariablesSection());
+        } else {
+            this.content.appendChild(this._buildResolversSection());
+        }
+    }
+
+    _buildTabs() {
+        const tabs = document.createElement('div');
+        tabs.className = 'options-tabs';
+
+        for (const [id, label] of [['variables', 'Variables'], ['resolvers', 'Resolvers']]) {
+            const btn = document.createElement('button');
+            btn.className   = `options-tab${this._activeTab === id ? ' active' : ''}`;
+            btn.textContent = label;
+            btn.addEventListener('click', () => {
+                this._activeTab = id;
+                this._showForm  = false;
+                this._render();
+            });
+            tabs.appendChild(btn);
+        }
+        return tabs;
+    }
+
+    _buildResolversSection() {
+        const section = document.createElement('div');
+
+        if (!this._resolvers.length) {
+            const empty = document.createElement('p');
+            empty.className   = 'text-muted';
+            empty.style.fontSize = '12px';
+            empty.textContent = 'Aucun resolver disponible.';
+            section.appendChild(empty);
+            return section;
+        }
+
+        const list = document.createElement('div');
+        list.className = 'resolver-list';
+
+        for (const r of this._resolvers) {
+            const item = document.createElement('div');
+            item.className = 'resolver-chip-item';
+            item.title     = r.description || r.value_action;
+
+            const key = document.createElement('span');
+            key.className   = 'resolver-chip-key';
+            key.textContent = `{{${r.value_action}}}`;
+
+            const desc = document.createElement('span');
+            desc.className   = 'resolver-chip-desc';
+            desc.textContent = r.description || '';
+
+            item.appendChild(key);
+            if (r.description) item.appendChild(desc);
+
+            item.addEventListener('click', () => {
+                document.dispatchEvent(new CustomEvent('resolver:insert', {
+                    detail: { key: r.value_action },
+                }));
+            });
+
+            list.appendChild(item);
+        }
+
+        section.appendChild(list);
+        return section;
     }
 
     _buildVariablesSection() {
@@ -66,13 +137,20 @@ export class OptionsPanel {
         title.textContent = 'Variables';
         section.appendChild(title);
 
-        // Liste
+        // Regrouper les variables
+        const groups = _groupVariables(this._variables);
+
         const list = document.createElement('div');
-        list.className = 'var-list';
+        list.className   = 'var-list';
         list.style.marginTop = '10px';
 
-        for (const v of this._variables) {
-            list.appendChild(this._buildVarItem(v));
+        for (const [groupName, vars] of groups) {
+            if (groupName === null) {
+                // Variables sans groupe — pas de header
+                for (const v of vars) list.appendChild(this._buildVarItem(v));
+            } else {
+                list.appendChild(this._buildGroupSection(groupName, vars));
+            }
         }
 
         section.appendChild(list);
@@ -95,6 +173,54 @@ export class OptionsPanel {
         }
 
         return section;
+    }
+
+    _buildGroupSection(groupName, vars) {
+        const isCollapsed = this._collapsed.has(groupName);
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'var-group';
+
+        // Header du groupe
+        const header = document.createElement('div');
+        header.className = 'var-group-header';
+
+        const arrow = document.createElement('span');
+        arrow.className   = 'var-group-arrow';
+        arrow.textContent = isCollapsed ? '▶' : '▼';
+
+        const label = document.createElement('span');
+        label.className   = 'var-group-label';
+        label.textContent = groupName;
+
+        const count = document.createElement('span');
+        count.className   = 'var-group-count';
+        count.textContent = vars.length;
+
+        header.appendChild(arrow);
+        header.appendChild(label);
+        header.appendChild(count);
+
+        header.addEventListener('click', () => {
+            if (this._collapsed.has(groupName)) {
+                this._collapsed.delete(groupName);
+            } else {
+                this._collapsed.add(groupName);
+            }
+            this._render();
+        });
+
+        wrapper.appendChild(header);
+
+        // Contenu du groupe
+        if (!isCollapsed) {
+            const body = document.createElement('div');
+            body.className = 'var-group-body';
+            for (const v of vars) body.appendChild(this._buildVarItem(v));
+            wrapper.appendChild(body);
+        }
+
+        return wrapper;
     }
 
     _buildVarItem(v) {
@@ -181,6 +307,13 @@ export class OptionsPanel {
             ? this._variables.find(v => v.id === this._editingId)
             : null;
 
+        // Liste des groupes existants pour les suggestions
+        const existingGroups = [...new Set(
+            this._variables.map(v => v.group).filter(Boolean)
+        )].sort();
+
+        const datalistId = 'vf-group-list';
+
         const form = document.createElement('div');
         form.className     = 'var-form';
         form.style.marginTop = '8px';
@@ -190,6 +323,14 @@ export class OptionsPanel {
                 <label>Nom</label>
                 <input type="text" id="vf-name" placeholder="ex: mute, mode, volume"
                     value="${editing ? _esc(editing.name) : ''}">
+            </div>
+            <div class="field">
+                <label>Groupe <span class="field-hint">(optionnel)</span></label>
+                <input type="text" id="vf-group" list="${datalistId}" placeholder="ex: audio, ui, stream"
+                    value="${editing?.group ? _esc(editing.group) : ''}">
+                <datalist id="${datalistId}">
+                    ${existingGroups.map(g => `<option value="${_esc(g)}">`).join('')}
+                </datalist>
             </div>
             <div class="field">
                 <label>Type</label>
@@ -245,6 +386,7 @@ export class OptionsPanel {
 
     async _saveVariable(form, editing) {
         const name         = form.querySelector('#vf-name').value.trim();
+        const group        = form.querySelector('#vf-group').value.trim() || null;
         const type         = form.querySelector('#vf-type').value;
         const defaultRaw   = form.querySelector('#vf-default').value.trim();
         const description  = form.querySelector('#vf-desc').value.trim();
@@ -258,12 +400,12 @@ export class OptionsPanel {
             if (editing) {
                 await api(`/variables/${editing.id}`, {
                     method: 'PUT',
-                    body:   { name, type, defaultValue, persistValue, description },
+                    body:   { name, type, defaultValue, persistValue, description, group },
                 });
             } else {
                 await api('/variables', {
                     method: 'POST',
-                    body:   { name, type, defaultValue, persistValue, description },
+                    body:   { name, type, defaultValue, persistValue, description, group },
                 });
             }
             this._showForm  = false;
@@ -305,6 +447,28 @@ export class OptionsPanel {
 // ---------------------------------------------------------------- //
 //  Utilitaires
 // ---------------------------------------------------------------- //
+
+/**
+ * Regroupe les variables par group (null = sans groupe).
+ * Retourne une Map ordonnée : groupes nommés en premier (alphabétique), null en dernier.
+ */
+function _groupVariables(variables) {
+    const map = new Map();
+
+    for (const v of variables) {
+        const key = v.group ?? null;
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(v);
+    }
+
+    // Trier : groupes nommés alphabétiquement, null à la fin
+    const sorted = new Map();
+    const namedKeys = [...map.keys()].filter(k => k !== null).sort();
+    for (const k of namedKeys) sorted.set(k, map.get(k));
+    if (map.has(null)) sorted.set(null, map.get(null));
+
+    return sorted;
+}
 
 function _formatValue(value) {
     if (value === null || value === undefined) return 'null';

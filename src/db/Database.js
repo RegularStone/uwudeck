@@ -30,6 +30,9 @@ export function getDb(dbPath = DEFAULT_DB_PATH) {
     const schema = readFileSync(SCHEMA_PATH, 'utf8');
     _instance.exec(schema);
 
+    // Migrations additives (idempotentes)
+    try { _instance.exec('ALTER TABLE variables ADD COLUMN group_name TEXT DEFAULT NULL'); } catch { /* déjà présente */ }
+
     logger.info(`Base de données initialisée : ${dbPath}`);
     return _instance;
 }

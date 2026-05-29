@@ -111,9 +111,9 @@ export class FeedbackManager extends EventEmitter {
                 if (this._evalCondition(c.when, state)) { matched = c.params; break; }
             }
             if (!matched) return; // aucun cas ne correspond
-            params = this._resolveParams(matched);
+            params = await this._resolveParams(matched);
         } else {
-            params = this._resolveParams(feedback.params ?? {});
+            params = await this._resolveParams(feedback.params ?? {});
         }
 
         const keyType = params.target_source_type ?? sourceType;
@@ -249,15 +249,38 @@ export class FeedbackManager extends EventEmitter {
 
     /**
      * Remplace les {{expr}} dans les valeurs string des params
-     * avec les variables d'état courantes.
+     * avec les variables d'état courantes et les resolvers connus.
+     * Les {{RESOLVER_KEY}} sont résolus en premier (async), puis
+     * les {{expr}} JS restants sont évalués avec les variables.
      */
-    _resolveParams(params) {
+    async _resolveParams(params) {
         if (!params || typeof params !== 'object') return params ?? {};
         const state = this.stateStore?.getAll() ?? {};
-        const out   = {};
+
+        // Pré-résolution des resolvers connus dans les strings
+        const resolvedState = { ...state };
+        const resolvers = this.renderers?.statebar?._resolvers;
+        if (resolvers) {
+            // Collecte les clés de resolver utilisés dans les params
+            const needed = new Set();
+            for (const val of Object.values(params)) {
+                if (typeof val !== 'string') continue;
+                for (const [, key] of val.matchAll(/\{\{([A-Z0-9_:]+)\}\}/g)) {
+                    if (resolvers.get(key)) needed.add(key);
+                }
+            }
+            // Résolution async en parallèle
+            await Promise.all([...needed].map(async key => {
+                try {
+                    resolvedState[key] = await resolvers.get(key)();
+                } catch { /* garde la valeur undefined */ }
+            }));
+        }
+
+        const out = {};
         for (const [key, val] of Object.entries(params)) {
-            if (typeof val === 'string' && val.includes('{{')) {
-                out[key] = this._evalTemplate(val, state);
+            if (typeof val === 'string' && (val.includes('{{') || val.includes('${'))) {
+                out[key] = this._evalTemplate(val, resolvedState);
             } else {
                 out[key] = val;
             }
@@ -266,7 +289,7 @@ export class FeedbackManager extends EventEmitter {
     }
 
     _evalTemplate(template, state) {
-        return template.replace(/\{\{([^}]+)\}\}/g, (_, expr) => {
+        const evaluate = (expr) => {
             try {
                 // eslint-disable-next-line no-new-func
                 const fn = new Function(...Object.keys(state), `return (${expr.trim()})`);
@@ -274,7 +297,10 @@ export class FeedbackManager extends EventEmitter {
             } catch {
                 return '';
             }
-        });
+        };
+        return template
+            .replace(/\{\{([^}]+)\}\}/g, (_, expr) => evaluate(expr))
+            .replace(/\$\{([^}]+)\}/g,   (_, expr) => evaluate(expr));
     }
 
     _evalCondition(expr, state) {

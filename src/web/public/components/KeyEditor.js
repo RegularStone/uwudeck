@@ -1,11 +1,13 @@
 // src/web/public/components/KeyEditor.js
 import { api } from '../app.js';
 
-// Actions et variables chargées depuis l'API
-let ACTIONS   = [];
-let VARIABLES = [];
+// Actions, variables et resolvers chargés depuis l'API
+let ACTIONS            = [];
+let VARIABLES          = [];
+let STATEBAR_RESOLVERS = [];
 fetch('/api/actions').then(r => r.json()).then(a => { ACTIONS   = a; });
 fetch('/api/variables').then(r => r.json()).then(v => { VARIABLES = v; });
+fetch('/api/statebar-resolvers').then(r => r.json()).then(r => { STATEBAR_RESOLVERS = r; });
 
 const HAPTIC_PATTERNS = [
     'SHORT', 'SHORT_LOW', 'SHORT_LOWER', 'MEDIUM', 'LONG',
@@ -113,7 +115,7 @@ export class KeyEditor {
         ).join('');
 
         const selectedAction = compatible.find(a => a.name === currentAction);
-        const argsHtml       = this._renderArgs(selectedAction?.args ?? [], displayArgs);
+        const argsHtml       = this._renderArgs(selectedAction?.args ?? [], displayArgs, selectedAction?.argTypes ?? {});
 
         return `
             <div class="field">
@@ -132,14 +134,54 @@ export class KeyEditor {
         `;
     }
 
-    _renderArgs(argNames, currentArgs) {
+    _renderArgs(argNames, currentArgs, argTypes = {}) {
         if (!argNames.length) return '';
-        return argNames.map(name => `
+        return argNames.map(name => {
+            const argType = argTypes[name];
+            if (argType === 'audio-device-output' || argType === 'audio-device-input') {
+                return this._renderAudioDeviceArg(name, currentArgs[name] ?? '', argType);
+            }
+            return `
             <div class="field">
                 <label>${name}</label>
                 <input type="text" id="arg-${name}" value="${currentArgs[name] ?? ''}" placeholder="${name}">
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
+    }
+
+    _renderAudioDeviceArg(argName, currentValue, argType) {
+        const deviceKind = argType === 'audio-device-output' ? 'outputs' : 'inputs';
+        const label      = argType === 'audio-device-output' ? 'Sortie audio' : 'Entrée audio';
+        return `
+            <div class="field audio-device-field" data-arg-name="${argName}" data-device-kind="${deviceKind}">
+                <label>${label}
+                    <button type="button" class="btn btn-sm btn-audio-rescan" title="Rescanner les périphériques">↺</button>
+                </label>
+                <select id="arg-${argName}" class="audio-device-select">
+                    <option value="${currentValue ?? ''}">${currentValue ? currentValue : '— Sélectionner —'}</option>
+                </select>
+                <span class="audio-device-loading text-muted" style="font-size:10px;display:none">Scan en cours…</span>
+            </div>`;
+    }
+
+    async _loadAudioDevices(fieldEl) {
+        const kind    = fieldEl.dataset.deviceKind;
+        const select  = fieldEl.querySelector('.audio-device-select');
+        const loading = fieldEl.querySelector('.audio-device-loading');
+        const current = select.value;
+        loading.style.display = '';
+        try {
+            const data    = await api('/audio-devices');
+            const devices = data[kind] ?? [];
+            select.innerHTML = `<option value="">— Sélectionner —</option>` +
+                devices.map(d =>
+                    `<option value="${d.id}" ${d.id === current ? 'selected' : ''}>${d.name}${d.isDefault ? ' ✓' : ''}</option>`
+                ).join('');
+        } catch (e) {
+            select.innerHTML = `<option value="">Erreur : ${e.message}</option>`;
+        } finally {
+            loading.style.display = 'none';
+        }
     }
 
     _renderEffects(effects) {
@@ -324,7 +366,8 @@ export class KeyEditor {
                     ${textField('label', 'Label', 'TEXT')}
                     ${colorField('color', 'Couleur texte', '#ffffff')}
                     ${colorField('bg',    'Fond',          '#000000')}
-                    ${textField('fontSize', 'Taille police', '13')}`;
+                    ${textField('fontSize', 'Taille police', '13')}
+                    ${this._renderPaddingFields(p, fid)}`;
 
             case 'icon':
                 return `
@@ -337,20 +380,88 @@ export class KeyEditor {
                                 `<option value="${v}" ${v === (p.fit ?? 'contain') ? 'selected' : ''}>${v}</option>`
                             ).join('')}
                         </select>
-                    </div>`;
+                    </div>
+                    <div class="field field-row">
+                        <div class="field" style="flex:1">
+                            <label>Largeur img (max 90)</label>
+                            <input type="number" min="1" max="90" data-param="imgW" data-feedback-id="${fid}" value="${p.imgW ?? ''}" placeholder="auto">
+                        </div>
+                        <div class="field" style="flex:1">
+                            <label>Hauteur img (max 90)</label>
+                            <input type="number" min="1" max="90" data-param="imgH" data-feedback-id="${fid}" value="${p.imgH ?? ''}" placeholder="auto">
+                        </div>
+                    </div>
+                    ${this._matrixPicker('imgAlign', 'Position image', p.imgAlign ?? 'mc', fid)}
+                    ${this._renderPaddingFields(p, fid, null, 'img')}
+                    ${textField('text', 'Texte superposé', '')}
+                    ${colorField('textColor', 'Couleur texte', '#ffffff')}
+                    <div class="field">
+                        <label>Taille police (px)</label>
+                        <input type="number" min="6" max="72" data-param="fontSize" data-feedback-id="${fid}" value="${p.fontSize ?? 12}">
+                    </div>
+                    ${this._matrixPicker('textAlign', 'Position texte', p.textAlign ?? 'bc', fid)}
+                    ${this._renderPaddingFields(p, fid, null, 'text')}`;
 
             case 'statebar':
                 return `
-                    ${textField('value_action', 'Resolver', '')}
-                    ${textField('label', 'Label', '')}
+                    ${this._renderResolverField(fid, p.value_action ?? '')}
+                    ${this._varTextField('label',     'Label',              p.label     ?? '',  fid)}
+                    ${this._varTextField('font_size', 'Taille police (px)', p.font_size ?? '',  fid)}
                     ${colorField('color',     'Couleur barre', '#00c8ff')}
                     ${colorField('color_low', 'Couleur basse', '#e74c3c')}
-                    ${colorField('bg',        'Fond barre',    '#1a1a1a')}
-                    ${colorField('bg_key',    'Fond touche',   '#000000')}`;
+                    ${colorField('bg',        'Fond',          '#1a1a1a')}
+                    ${this._renderPaddingFields(p, fid)}`;
 
             default:
                 return '';
         }
+    }
+
+    /**
+     * @param {string|null} feedbackId  - id du feedback (mode direct) ou null (mode case)
+     * @param {string}      currentValue
+     * @param {number|null} caseIdx     - index du cas (mode conditionnel) ou null
+     */
+    _renderResolverField(feedbackId, currentValue, caseIdx = null) {
+        const dynamicMatch = currentValue?.match(/^GET_VOLUME_APP:(.+)$/);
+        const isDynamic    = Boolean(dynamicMatch);
+        const dynamicApp   = dynamicMatch?.[1] ?? '';
+
+        const options = STATEBAR_RESOLVERS.map(r => {
+            const isDynBase = r.value_action.includes('<');
+            const baseKey   = isDynBase ? r.value_action.replace(/:<.*>$/, '') : r.value_action;
+            const selected  = isDynamic ? isDynBase : r.value_action === currentValue;
+            return `<option value="${baseKey}" data-description="${_escAttr(r.description)}" ${selected ? 'selected' : ''}>${r.value_action}</option>`;
+        }).join('');
+
+        const tooltipText = STATEBAR_RESOLVERS.find(r => {
+            const baseKey = r.value_action.replace(/:<.*>$/, '');
+            return isDynamic ? r.value_action.includes('<') : baseKey === currentValue;
+        })?.description ?? '';
+
+        // En mode case : data-case-param + data-case-idx pour que le save les collecte
+        const isCase   = caseIdx !== null;
+        const dataAttr = isCase
+            ? `data-case-param="value_action" data-case-idx="${caseIdx}"`
+            : `data-param="value_action" data-feedback-id="${feedbackId}"`;
+
+        return `
+            <div class="field resolver-field">
+                <label>Resolver</label>
+                <select ${dataAttr} class="resolver-select" title="${_escAttr(tooltipText)}">
+                    <option value="">— Aucun —</option>
+                    ${options}
+                </select>
+                <div class="resolver-app-row" style="${isDynamic ? '' : 'display:none'}">
+                    <label style="font-size:10px;color:var(--text-muted)">Application (.exe)</label>
+                    <input type="text" class="resolver-app-input"
+                        placeholder="ex: chrome.exe"
+                        value="${_escAttr(dynamicApp)}">
+                </div>
+                <div class="resolver-hint" title="${_escAttr(tooltipText)}">
+                    ${tooltipText ? `ℹ ${tooltipText}` : ''}
+                </div>
+            </div>`;
     }
 
     // ---------------------------------------------------------------- //
@@ -476,16 +587,40 @@ export class KeyEditor {
                 fields = textInput('label', 'Label', 'TEXT')
                     + colorInput('color', 'Couleur texte', '#ffffff')
                     + colorInput('bg',    'Fond',          '#000000')
-                    + textInput('fontSize', 'Taille police', '13');
+                    + textInput('fontSize', 'Taille police', '13')
+                    + this._renderPaddingFields(params, null, caseIdx);
                 break;
             case 'icon':
                 fields = textInput('src', 'Fichier', '')
-                    + colorInput('bg', 'Fond', '#000000');
+                    + colorInput('bg', 'Fond', '#000000')
+                    + `<div class="field field-row">
+                        <div class="field" style="flex:1">
+                            <label>Largeur img (max 90)</label>
+                            <input type="number" min="1" max="90" data-case-param="imgW" data-case-idx="${caseIdx}" value="${params.imgW ?? ''}" placeholder="auto">
+                        </div>
+                        <div class="field" style="flex:1">
+                            <label>Hauteur img (max 90)</label>
+                            <input type="number" min="1" max="90" data-case-param="imgH" data-case-idx="${caseIdx}" value="${params.imgH ?? ''}" placeholder="auto">
+                        </div>
+                       </div>`
+                    + this._matrixPicker('imgAlign', 'Position image', params.imgAlign ?? 'mc', null, caseIdx)
+                    + this._renderPaddingFields(params, null, caseIdx, 'img')
+                    + textInput('text', 'Texte superposé', '')
+                    + colorInput('textColor', 'Couleur texte', '#ffffff')
+                    + `<div class="field">
+                        <label>Taille police (px)</label>
+                        <input type="number" min="6" max="72" data-case-param="fontSize" data-case-idx="${caseIdx}" value="${params.fontSize ?? 12}">
+                       </div>`
+                    + this._matrixPicker('textAlign', 'Position texte', params.textAlign ?? 'bc', null, caseIdx)
+                    + this._renderPaddingFields(params, null, caseIdx, 'text');
                 break;
             case 'statebar':
-                fields = textInput('value_action', 'Resolver', '')
-                    + colorInput('color',  'Couleur barre', '#00c8ff')
-                    + colorInput('bg_key', 'Fond touche',   '#000000');
+                fields = this._renderResolverField(null, params.value_action ?? '', caseIdx)
+                    + this._varTextField('label',     'Label',              params.label     ?? '', null, caseIdx)
+                    + this._varTextField('font_size', 'Taille police (px)', params.font_size ?? '', null, caseIdx)
+                    + colorInput('color', 'Couleur barre', '#00c8ff')
+                    + colorInput('bg',    'Fond',          '#1a1a1a')
+                    + this._renderPaddingFields(params, null, caseIdx);
                 break;
         }
 
@@ -498,6 +633,83 @@ export class KeyEditor {
                 <label>Couleur</label>
                 <input type="color" data-case-param="color" data-case-idx="${caseIdx}"
                     value="${params.color ?? '#ffffff'}">
+            </div>`;
+    }
+
+    /**
+     * Champ texte avec picker de variables (insère ${varName} au curseur).
+     * En mode direct  : data-param + data-feedback-id
+     * En mode case    : data-case-param + data-case-idx
+     */
+    _varTextField(param, label, currentValue, feedbackId, caseIdx = null) {
+        const isCase   = caseIdx !== null;
+        const dataAttr = isCase
+            ? `data-case-param="${param}" data-case-idx="${caseIdx}"`
+            : `data-param="${param}" data-feedback-id="${feedbackId}"`;
+
+        const chips = VARIABLES.map(v =>
+            `<button type="button" class="var-chip" data-varname="${v.name}" title="${v.type}">\${${v.name}}</button>`
+        ).join('');
+
+        return `
+            <div class="field var-text-field">
+                <label>${label}</label>
+                <input type="text" ${dataAttr} class="var-target"
+                    value="${_escAttr(String(currentValue))}"
+                    placeholder="${label}">
+                ${VARIABLES.length ? `<div class="var-chips">${chips}</div>` : ''}
+            </div>`;
+    }
+
+    _renderPaddingFields(p, feedbackId, caseIdx = null, prefix = '') {
+        const isCase = caseIdx !== null;
+        const key = s => prefix
+            ? `${prefix}Pad${s[0].toUpperCase()}${s.slice(1)}`
+            : `pad${s[0].toUpperCase()}${s.slice(1)}`;
+        const field = (side, label) => {
+            const param    = key(side);
+            const dataAttr = isCase
+                ? `data-case-param="${param}" data-case-idx="${caseIdx}"`
+                : `data-param="${param}" data-feedback-id="${feedbackId}"`;
+            return `<div class="field" style="flex:1">
+                <label>${label}</label>
+                <input type="number" min="0" max="90" ${dataAttr}
+                    value="${p[param] ?? 0}" placeholder="0">
+            </div>`;
+        };
+        const title = prefix === 'img' ? 'Padding image' : prefix === 'text' ? 'Padding texte' : 'Padding';
+        return `
+            <div class="field">
+                <label>${title}</label>
+                <div class="field-row" style="gap:4px">
+                    ${field('top',    '↑')}
+                    ${field('right',  '→')}
+                    ${field('bottom', '↓')}
+                    ${field('left',   '←')}
+                </div>
+            </div>`;
+    }
+
+    _matrixPicker(param, label, currentVal, feedbackId, caseIdx = null) {
+        const isCase   = caseIdx !== null;
+        const uid      = isCase ? `${param}-case-${caseIdx}` : `${param}-${feedbackId}`;
+        const dataAttr = isCase
+            ? `data-case-param="${param}" data-case-idx="${caseIdx}"`
+            : `data-param="${param}" data-feedback-id="${feedbackId}"`;
+
+        const POS   = ['tl','tc','tr','ml','mc','mr','bl','bc','br'];
+        const ICONS = ['↖','↑','↗','←','·','→','↙','↓','↘'];
+
+        const buttons = POS.map((p, i) =>
+            `<button type="button" class="matrix-btn${p === currentVal ? ' active' : ''}"
+                data-matrix-uid="${uid}" data-matrix-val="${p}" title="${p}">${ICONS[i]}</button>`
+        ).join('');
+
+        return `
+            <div class="field">
+                <label>${label}</label>
+                <div class="matrix-grid">${buttons}</div>
+                <input type="hidden" id="matrix-${uid}" ${dataAttr} value="${currentVal ?? 'mc'}">
             </div>`;
     }
 
@@ -531,8 +743,21 @@ export class KeyEditor {
             const actionName = e.target.value;
             const action     = ACTIONS.find(a => a.name === actionName);
             const container  = c.querySelector('#args-container');
-            container.innerHTML = this._renderArgs(action?.args ?? [], {});
+            container.innerHTML = this._renderArgs(action?.args ?? [], {}, action?.argTypes ?? {});
+            // Auto-scan pour les champs audio-device
+            container.querySelectorAll('.audio-device-field').forEach(f => this._loadAudioDevices(f));
         }, { signal });
+
+        // Rescan périphériques audio
+        c.addEventListener('click', e => {
+            const btn = e.target.closest('.btn-audio-rescan');
+            if (!btn) return;
+            const field = btn.closest('.audio-device-field');
+            if (field) this._loadAudioDevices(field);
+        }, { signal });
+
+        // Auto-scan initial si des champs audio-device sont présents
+        c.querySelectorAll('.audio-device-field').forEach(f => this._loadAudioDevices(f));
 
         // Effets variables — ajouter une ligne
         c.querySelector('#btn-add-effect')?.addEventListener('click', () => {
@@ -635,6 +860,65 @@ export class KeyEditor {
                     if (label && b.dataset.else !== 'true') label.textContent = `Cas ${i + 1}`;
                 });
             }
+        }, { signal });
+
+        // Variable/resolver picker — suivi du dernier input focusé + insertion au curseur
+        let _lastVarTarget = null;
+        c.addEventListener('focusin', e => {
+            if (e.target.classList.contains('var-target')) _lastVarTarget = e.target;
+        }, { signal });
+
+        const onResolverInsert = e => {
+            const input = _lastVarTarget ?? c.querySelector('.var-target');
+            if (!input) return;
+            const insertion = `{{${e.detail.key}}}`;
+            const start = input.selectionStart ?? input.value.length;
+            const end   = input.selectionEnd   ?? input.value.length;
+            input.value = input.value.slice(0, start) + insertion + input.value.slice(end);
+            input.selectionStart = input.selectionEnd = start + insertion.length;
+            input.focus();
+        };
+        document.addEventListener('resolver:insert', onResolverInsert, { signal });
+        c.addEventListener('click', e => {
+            // Matrix picker — clic sur une cellule
+            const matrixBtn = e.target.closest('.matrix-btn');
+            if (matrixBtn) {
+                const uid = matrixBtn.dataset.matrixUid;
+                const val = matrixBtn.dataset.matrixVal;
+                const input = c.querySelector(`#matrix-${uid}`);
+                if (input) input.value = val;
+                c.querySelectorAll(`.matrix-btn[data-matrix-uid="${uid}"]`).forEach(b => {
+                    b.classList.toggle('active', b.dataset.matrixVal === val);
+                });
+                return;
+            }
+
+            const chip = e.target.closest('.var-chip');
+            if (!chip) return;
+            const varName = chip.dataset.varname;
+            const input   = _lastVarTarget ?? c.querySelector('.var-target');
+            if (!input) return;
+            const insertion = `\${${varName}}`;
+            const start = input.selectionStart ?? input.value.length;
+            const end   = input.selectionEnd   ?? input.value.length;
+            input.value = input.value.slice(0, start) + insertion + input.value.slice(end);
+            input.selectionStart = input.selectionEnd = start + insertion.length;
+            input.focus();
+            input.dispatchEvent(new Event('input'));
+        }, { signal });
+
+        // Resolver statebar — mise à jour tooltip + champ app dynamique
+        c.addEventListener('change', e => {
+            if (!e.target.classList.contains('resolver-select')) return;
+            const selected = e.target.options[e.target.selectedIndex];
+            const desc     = selected?.dataset.description ?? '';
+            e.target.title = desc;
+            const field    = e.target.closest('.resolver-field');
+            if (!field) return;
+            const hint     = field.querySelector('.resolver-hint');
+            if (hint) { hint.textContent = desc ? `ℹ ${desc}` : ''; hint.title = desc; }
+            const appRow   = field.querySelector('.resolver-app-row');
+            if (appRow) appRow.style.display = e.target.value.startsWith('GET_VOLUME_APP') ? '' : 'none';
         }, { signal });
 
         // Re-render params quand le renderer change
@@ -814,6 +1098,7 @@ export class KeyEditor {
                 block.querySelectorAll('[data-case-param]').forEach(el => {
                     caseObj.params[el.dataset.caseParam] = el.value;
                 });
+                _resolveAppParam(caseObj.params, block);
                 cases.push(caseObj);
             });
             params = { cases };
@@ -822,6 +1107,8 @@ export class KeyEditor {
             item.querySelectorAll('[data-param]').forEach(el => {
                 params[el.dataset.param] = el.value;
             });
+            // Resolver dynamique : concatène l'app si nécessaire
+            _resolveAppParam(params, item);
         }
 
         try {
@@ -843,6 +1130,13 @@ export class KeyEditor {
             alert(`Erreur : ${e.message}`);
         }
     }
+}
+
+function _resolveAppParam(params, container) {
+    if (!params.value_action?.startsWith('GET_VOLUME_APP')) return;
+    const appInput = container.querySelector('.resolver-app-input');
+    const app = appInput?.value.trim();
+    params.value_action = app ? `GET_VOLUME_APP:${app}` : '';
 }
 
 function _escAttr(str) {

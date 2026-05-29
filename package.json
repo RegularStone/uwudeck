@@ -8,6 +8,7 @@
     "express": "^5.2.1",
     "loupedeck": "^7.0.3",
     "native-sound-mixer": "^3.4.6-win",
+    "node-windows-audio-manager-switcher": "^1.0.0",
     "ws": "^8.21.0"
   }
 }

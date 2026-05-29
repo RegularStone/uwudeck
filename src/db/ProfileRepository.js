@@ -235,17 +235,18 @@ export class ProfileRepository {
     //  VARIABLES D'ÉTAT
     // ------------------------------------------------------------------ //
 
-    createVariable({ name, type = 'boolean', defaultValue = null, persistValue = false, description = '' }) {
+    createVariable({ name, type = 'boolean', defaultValue = null, persistValue = false, description = '', group = null }) {
         const db = getDb();
         const result = db.prepare(`
-            INSERT INTO variables (name, type, default_value, persist_value, description)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO variables (name, type, default_value, persist_value, description, group_name)
+            VALUES (?, ?, ?, ?, ?, ?)
         `).run(
             name,
             type,
             defaultValue !== null ? JSON.stringify(defaultValue) : null,
             persistValue ? 1 : 0,
             description,
+            group || null,
         );
         return this.getVariableById(result.lastInsertRowid);
     }
@@ -256,7 +257,7 @@ export class ProfileRepository {
     }
 
     listVariables() {
-        return getDb().prepare('SELECT * FROM variables ORDER BY name').all()
+        return getDb().prepare('SELECT * FROM variables ORDER BY group_name ASC NULLS LAST, name ASC').all()
             .map(r => this._parseVariable(r));
     }
 
@@ -274,12 +275,15 @@ export class ProfileRepository {
         const defaultValue = updates.hasOwnProperty('defaultValue')
             ? (updates.defaultValue !== null ? JSON.stringify(updates.defaultValue) : null)
             : row.default_value;
+        const groupName = updates.hasOwnProperty('group')
+            ? (updates.group || null)
+            : row.group_name;
 
         db.prepare(`
             UPDATE variables
-            SET name = ?, type = ?, default_value = ?, persist_value = ?, description = ?
+            SET name = ?, type = ?, default_value = ?, persist_value = ?, description = ?, group_name = ?
             WHERE id = ?
-        `).run(name, type, defaultValue, persistValue, description, id);
+        `).run(name, type, defaultValue, persistValue, description, groupName, id);
 
         return this.getVariableById(id);
     }
@@ -294,6 +298,7 @@ export class ProfileRepository {
             default_value: row.default_value !== null ? JSON.parse(row.default_value) : null,
             last_value:    row.last_value    !== null ? JSON.parse(row.last_value)    : null,
             persist_value: Boolean(row.persist_value),
+            group:         row.group_name ?? null,
         };
     }
 
