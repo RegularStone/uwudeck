@@ -6,14 +6,8 @@ export class ScreenDrawer {
     }
 
     async resetScreen() {
-        logger.info("🔓 Déblocage de l'écran avec drawCanvas...");
-        await this.device.drawCanvas({
-            id: 'center',
-            width: 480,
-            height: 288, 
-            x: 0,
-            y: 0
-        }, (ctx, width, height) => {
+        logger.info("🔓 Déblocage de l'écran avec drawScreen...");
+        await this.device.drawScreen('center', (ctx, width, height) => {
             ctx.fillStyle = 'black';
             ctx.fillRect(0, 0, width, height);
         });

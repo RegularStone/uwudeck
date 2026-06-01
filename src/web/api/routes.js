@@ -3,6 +3,7 @@ import { Router }            from 'express';
 import { ProfileRepository } from '../../db/ProfileRepository.js';
 import { getDb }             from '../../db/Database.js';
 import { logger }            from '../../utils/logger.js';
+import { SCREENSAVER_REGISTRY } from '../../screensaver/index.js';
 
 /**
  * @param {object}   uwudeck   - Instance Uwudeck (accès device + feedbackManager)
@@ -310,6 +311,9 @@ export function createRoutes(uwudeck, broadcast) {
             { name: 'NEXT_PAGE',            args: [],         argTypes: {},                              sourceTypes: ['buttons', 'touch'] },
             { name: 'PREVIOUS_PAGE',        args: [],         argTypes: {},                              sourceTypes: ['buttons', 'touch'] },
             { name: 'OPEN_PATH',            args: ['path'],   argTypes: {},                              sourceTypes: ['buttons', 'touch'] },
+            { name: 'BOOKMARK_SET',         args: ['id'],     argTypes: {},                              sourceTypes: ['buttons', 'touch'] },
+            { name: 'BOOKMARK_FOCUS',       args: ['id'],     argTypes: {},                              sourceTypes: ['buttons', 'touch'] },
+            { name: 'BOOKMARK_CLEAR',       args: ['id'],     argTypes: {},                              sourceTypes: ['buttons', 'touch'] },
         ]);
     });
 
@@ -394,6 +398,38 @@ export function createRoutes(uwudeck, broadcast) {
             uwudeck.stateStore.set(name, value);
             uwudeck._refreshVisibleFeedbacks();
             res.json({ ok: true });
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+
+    // ---------------------------------------------------------------- //
+    //  Screensaver
+    // ---------------------------------------------------------------- //
+
+    // GET /api/screensaver — état + liste des animations disponibles
+    router.get('/screensaver', (_req, res) => {
+        try {
+            const settings   = getDb().prepare('SELECT enabled, animation_id FROM screensaver_settings WHERE id = 1').get();
+            const animations = [...SCREENSAVER_REGISTRY.keys()];
+            res.json({ ...settings, animations });
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+
+    // PUT /api/screensaver — modifier enabled et/ou animation_id
+    router.put('/screensaver', (req, res) => {
+        try {
+            const { enabled, animation_id } = req.body;
+            const db = getDb();
+            if (enabled !== undefined)      db.prepare('UPDATE screensaver_settings SET enabled = ? WHERE id = 1').run(enabled ? 1 : 0);
+            if (animation_id !== undefined) {
+                if (!SCREENSAVER_REGISTRY.has(animation_id))
+                    return res.status(400).json({ error: `Animation "${animation_id}" inconnue` });
+                db.prepare('UPDATE screensaver_settings SET animation_id = ? WHERE id = 1').run(animation_id);
+            }
+            const settings = db.prepare('SELECT enabled, animation_id FROM screensaver_settings WHERE id = 1').get();
+            // Relance le timer avec les nouveaux réglages
+            uwudeck._resetScreensaverTimer();
+            broadcast({ type: 'screensaver:changed', ...settings });
+            res.json(settings);
         } catch (e) { res.status(500).json({ error: e.message }); }
     });
 

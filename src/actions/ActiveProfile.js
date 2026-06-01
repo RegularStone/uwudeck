@@ -13,11 +13,12 @@ export class ActiveProfile {
 
     /**
      * @param {object} device - Instance Loupedeck
+     * @param {object} state  - Instance StateStore
      */
-    constructor(device) {
+    constructor(device, state) {
         this.device   = device;
         this.repo     = new ProfileRepository();
-        this.registry = new ActionRegistry(device, this);
+        this.registry = new ActionRegistry(device, this, state);
 
         // Chargement du snapshot depuis la BDD
         const snapshot = this.repo.loadActiveProfileSnapshot();

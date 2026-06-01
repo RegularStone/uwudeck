@@ -1,11 +1,15 @@
 // src/core/Uwudeck.js
 import { connectLoupedeck, resetLoupedeckConnection } from '../hardware/connectUSB.js';
-import { ScreenDrawer }    from '../draw/ScreenDrawer.js';
-import { ActiveProfile }   from '../actions/ActiveProfile.js';
-import { FeedbackManager } from '../feedback/FeedbackManager.js';
-import { StateStore }      from '../state/StateStore.js';
-import { WebServer }       from '../web/server.js';
-import { logger }          from '../utils/logger.js';
+import { ScreenDrawer }      from '../draw/ScreenDrawer.js';
+import { ActiveProfile }     from '../actions/ActiveProfile.js';
+import { FeedbackManager }   from '../feedback/FeedbackManager.js';
+import { StateStore }        from '../state/StateStore.js';
+import { WebServer }         from '../web/server.js';
+import { ScreensaverRunner }  from '../screensaver/ScreensaverRunner.js';
+import { getDb }             from '../db/Database.js';
+import { logger }            from '../utils/logger.js';
+
+const SCREENSAVER_DELAY_MS = 30_000;
 
 export class Uwudeck {
     constructor() {
@@ -15,6 +19,9 @@ export class Uwudeck {
         this.currentProfile  = null;
         this.feedbackManager = null;
         this.webServer       = null;
+        this.screensaverRunner = null;
+        this._ssTimer        = null;
+        this._ssActive       = false;
     }
 
     async start() {
@@ -59,7 +66,7 @@ export class Uwudeck {
         this.stateStore = new StateStore();
 
         // ---- Profil et feedback ------------------------------------- //
-        this.currentProfile  = new ActiveProfile(this.device);
+        this.currentProfile  = new ActiveProfile(this.device, this.stateStore);
         this.feedbackManager = new FeedbackManager(this.device, this.stateStore);
 
         logger.info(`Profil chargé : "${this.currentProfile.profile.name}" (Page : "${this.currentProfile.getCurrentPageName()}")`);
@@ -95,6 +102,15 @@ export class Uwudeck {
             await this.handleInteraction('knobs', id, delta);
         });
 
+        this.feedbackManager.on('animation:done', () => {
+            this._refreshVisibleFeedbacks();
+        });
+
+        // ---- Screensaver ------------------------------------------- //
+        this.screensaverRunner = new ScreensaverRunner(this.device);
+        this.feedbackManager._screensaverRunner = this.screensaverRunner;
+        this._resetScreensaverTimer();
+
         // ---- Rendu initial des feedbacks visuels -------------------- //
         this._refreshVisibleFeedbacks();
     }
@@ -103,7 +119,42 @@ export class Uwudeck {
     //  Gestion d'une interaction
     // ---------------------------------------------------------------- //
 
+    _getScreensaverSettings() {
+        return getDb().prepare('SELECT enabled, animation_id FROM screensaver_settings WHERE id = 1').get();
+    }
+
+    _resetScreensaverTimer() {
+        clearTimeout(this._ssTimer);
+        const settings = this._getScreensaverSettings();
+        if (!settings?.enabled) return;
+        this._ssTimer = setTimeout(() => {
+            this._ssActive = true;
+            this.screensaverRunner.start(settings.animation_id);
+            logger.info(`Screensaver démarré (${settings.animation_id}).`);
+        }, SCREENSAVER_DELAY_MS);
+    }
+
+    _wakeFromScreensaver() {
+        if (!this._ssActive) return false;
+        this._ssActive = false;
+        this.screensaverRunner.stop();
+        logger.info('Screensaver arrêté.');
+        this._clearAllKeys().then(() => this._refreshVisibleFeedbacks());
+        return true;
+    }
+
+    async _clearAllKeys() {
+        for (let i = 0; i < 15; i++) {
+            await this.device.drawKey(i, (ctx, w, h) => {
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, w, h);
+            });
+        }
+    }
+
     async handleInteraction(sourceType, id, delta = null) {
+        this._resetScreensaverTimer();
+        if (this._wakeFromScreensaver()) return;
         const result = this.currentProfile?.getAction(sourceType, id);
         if (!result) return;
 
@@ -175,6 +226,8 @@ export class Uwudeck {
     // ---------------------------------------------------------------- //
 
     async stop() {
+        clearTimeout(this._ssTimer);
+        this.screensaverRunner?.stop();
         this.webServer?.stop();
         if (this.device) {
             logger.info('Déconnexion du Loupedeck...');

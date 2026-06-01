@@ -299,6 +299,24 @@ export class KeyEditor {
                         <input type="text" data-param="scene" data-feedback-id="${feedback.id}" value="${p.scene ?? ''}" placeholder="nom_de_la_scene">
                     </div>`;
 
+            case 'animation': {
+                const animSelect = document.createElement('select');
+                fetch('/api/screensaver').then(r => r.json()).then(data => {
+                    const sel = document.querySelector(`select[data-param="animation_id"][data-feedback-id="${feedback.id}"]`);
+                    if (!sel) return;
+                    sel.innerHTML = data.animations.map(id =>
+                        `<option value="${id}" ${id === (p.animation_id ?? '') ? 'selected' : ''}>${id}</option>`
+                    ).join('');
+                });
+                return `
+                    <div class="field">
+                        <label>Animation</label>
+                        <select data-param="animation_id" data-feedback-id="${feedback.id}">
+                            <option value="">Chargement…</option>
+                        </select>
+                    </div>`;
+            }
+
             default:
                 return `<span class="text-muted" style="font-size:11px">Params: ${JSON.stringify(p)}</span>`;
         }
@@ -721,6 +739,7 @@ export class KeyEditor {
                     <option value="led">led</option>
                     <option value="draw">draw</option>
                     <option value="screen">screen</option>
+                    <option value="animation">animation</option>
                 </select>
                 <button class="btn btn-sm" id="btn-add-feedback">+ Ajouter</button>
             </div>`;

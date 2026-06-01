@@ -7,8 +7,8 @@ export class JsonProfile {
         this.device = device;
         this.config = jsonConfig;
         
-        // CORRECTION : On passe 'this' pour que le registre puisse appeler .nextPage()
-        this.registry = new ActionRegistry(device, this);
+        // On passe null pour state : JsonProfile n'a pas de StateStore
+        this.registry = new ActionRegistry(device, this, null);
         
         this.pageKeys = Object.keys(jsonConfig.pages);
         this.currentPageIndex = 0;

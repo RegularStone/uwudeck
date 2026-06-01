@@ -23,7 +23,7 @@ import { StateBarRenderer } from './renderers/StateBarRenderer.js';
  *   haptic → vibration
  *   led    → couleur d'un bouton physique
  *   draw   → dessin sur une touche tactile individuelle (drawKey)
- *   screen → scène nommée sur la zone centrale complète (drawCanvas)
+ *   screen → scène nommée sur la zone centrale complète (drawScreen)
  *            → enregistrer via feedbackManager.registerScreenAction(name, fn)
  *
  * Usage :
@@ -49,7 +49,7 @@ export class FeedbackManager extends EventEmitter {
             statebar: new StateBarRenderer(device),
         };
 
-        // Registre des scènes pour drawCanvas (zone centrale complète)
+        // Registre des scènes pour drawScreen (zone centrale complète)
         // Clé : nom de la scène (string)  →  Valeur : async (device, params) => void
         // Enregistrement : feedbackManager.registerScreenAction('ma_scene', async (device, params) => { ... })
         this._screenActions = new Map();
@@ -57,7 +57,7 @@ export class FeedbackManager extends EventEmitter {
     }
 
     // ---------------------------------------------------------------- //
-    //  Registre des scènes screen (drawCanvas)
+    //  Registre des scènes screen (drawScreen)
     // ---------------------------------------------------------------- //
 
     /**
@@ -69,7 +69,7 @@ export class FeedbackManager extends EventEmitter {
      *
      * @example
      * feedbackManager.registerScreenAction('page_audio_layout', async (device, params) => {
-     *     await device.drawCanvas({ id: 'center', width: 480, height: 288, x: 0, y: 0 },
+     *     await device.drawScreen('center',
      *         (ctx, w, h) => { ... }
      *     );
      * });
@@ -135,6 +135,10 @@ export class FeedbackManager extends EventEmitter {
 
             case 'screen':
                 await this._executeScreen(params);
+                break;
+
+            case 'animation':
+                await this._executeAnimation(params);
                 break;
 
             default:
@@ -203,8 +207,25 @@ export class FeedbackManager extends EventEmitter {
     }
 
     // ---------------------------------------------------------------- //
-    //  Screen (drawCanvas — zone centrale complète)
+    //  Screen (drawScreen — zone centrale complète)
     // ---------------------------------------------------------------- //
+
+    async _executeAnimation({ animation_id }) {
+        if (!animation_id) { logger.warn('Animation : paramètre "animation_id" manquant'); return; }
+        if (!this._screensaverRunner) { logger.warn('Animation : screensaverRunner non injecté'); return; }
+        await this._screensaverRunner.playOnce(animation_id, () => this._onAnimationDone());
+    }
+
+    async _onAnimationDone() {
+        for (let i = 0; i < 15; i++) {
+            await this.device.drawKey(i, (ctx, w, h) => {
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, w, h);
+            });
+        }
+        // Redessine tous les feedbacks visuels visibles
+        this.emit('animation:done');
+    }
 
     async _executeScreen({ scene }) {
         if (!scene) { logger.warn('Screen : paramètre "scene" manquant'); return; }
@@ -234,7 +255,7 @@ export class FeedbackManager extends EventEmitter {
     async refresh(bindingId, keyType, keyId) {
         const feedbacks = this.repo.getFeedbacksForBinding(bindingId);
         for (const feedback of feedbacks) {
-            if (feedback.type === 'haptic') continue;
+            if (feedback.type === 'haptic' || feedback.type === 'animation') continue;
             try {
                 await this._executeFeedback(feedback, keyType, keyId);
             } catch (err) {

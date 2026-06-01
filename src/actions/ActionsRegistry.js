@@ -1,15 +1,18 @@
 // src/actions/ActionsRegistry.js
 import { GeneralActions } from './GeneralActions.js';
 import { AudioActions }   from './AudioActions.js';
+import { WindowActions }  from './WindowActions.js';
 // StateStore reçu en paramètre du constructeur — pas d'import direct
 
 export class ActionRegistry {
     /**
      * @param {object} device  - Instance Loupedeck
      * @param {object} profile - Instance ActiveProfile
+     * @param {object} state   - Instance StateStore
      */
-    constructor(device, profile) {
+    constructor(device, profile, state) {
         const general = new GeneralActions(device);
+        const windows = new WindowActions(state);
         this.audio    = new AudioActions();
 
         this.actions = {
@@ -28,6 +31,11 @@ export class ActionRegistry {
 
             // Système
             "OPEN_PATH": (ctx) => general.openPath(ctx.path),
+
+            // Signet de fenêtre
+            "BOOKMARK_SET":   (ctx) => windows.bookmarkSet(ctx.id),
+            "BOOKMARK_FOCUS": (ctx) => windows.bookmarkFocus(ctx.id),
+            "BOOKMARK_CLEAR": (ctx) => windows.bookmarkClear(ctx.id),
         };
     }
 

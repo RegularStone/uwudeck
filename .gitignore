@@ -12,3 +12,7 @@ assets/
 
 # test
 test-audio.js
+
+#IA
+.agents/
+.claude/

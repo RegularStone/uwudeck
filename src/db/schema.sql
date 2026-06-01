@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS bindings (
 CREATE TABLE IF NOT EXISTS feedbacks (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     binding_id  INTEGER NOT NULL REFERENCES bindings(id) ON DELETE CASCADE,
-    type        TEXT    NOT NULL CHECK(type IN ('haptic', 'led', 'draw')),
+    type        TEXT    NOT NULL CHECK(type IN ('haptic', 'led', 'draw', 'screen', 'animation')),
     params      TEXT    NOT NULL DEFAULT '{}'
     -- params selon le type :
     --

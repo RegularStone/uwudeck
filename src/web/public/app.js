@@ -40,11 +40,44 @@ const optionsPanel   = new OptionsPanel(
 async function init() {
     await loadProfile();
     await optionsPanel.refresh();
+    await setupScreensaverControls();
     connectWebSocket();
     setupDeviceControls();
     setupEditorResize();
     document.getElementById('btn-open-profiles')
         .addEventListener('click', () => profileManager.open());
+}
+
+async function setupScreensaverControls() {
+    const toggleBtn = document.getElementById('btn-ss-toggle');
+    const select    = document.getElementById('ss-animation-select');
+
+    async function refresh() {
+        const data = await api('/screensaver');
+        toggleBtn.classList.toggle('active', !!data.enabled);
+        toggleBtn.title = data.enabled ? 'Screensaver activé — cliquer pour désactiver' : 'Screensaver désactivé — cliquer pour activer';
+        select.style.display = data.enabled ? '' : 'none';
+        select.innerHTML = '';
+        for (const id of data.animations) {
+            const opt = document.createElement('option');
+            opt.value = id;
+            opt.textContent = id;
+            opt.selected = id === data.animation_id;
+            select.appendChild(opt);
+        }
+    }
+
+    toggleBtn.addEventListener('click', async () => {
+        const current = toggleBtn.classList.contains('active');
+        await api('/screensaver', { method: 'PUT', body: { enabled: !current } });
+        await refresh();
+    });
+
+    select.addEventListener('change', async () => {
+        await api('/screensaver', { method: 'PUT', body: { animation_id: select.value } });
+    });
+
+    await refresh();
 }
 
 function setupEditorResize() {
